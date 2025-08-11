@@ -22,6 +22,9 @@ python -m aquapy -nmap -i scan.xml -out out
 cat scan.xml | python -m aquapy -nmap -out out
 ```
 
+## Screenshot:
+<img width="1722" height="964" alt="Screenshot 2025-08-10 at 9 32 07 PM" src="https://github.com/user-attachments/assets/c2ef4076-99a3-478f-8bc6-79a355128cf7" />
+
 
 ## Installation (detailed)
 
