@@ -1,6 +1,6 @@
 # aquapy — Aquatone-style flyovers (Chromium) — v0.5.0
 
-Python re-implementation of Aquatone’s workflow with Chromium (Playwright): async HTTP preflight, screenshots, pHash clustering, basic Wappalyzer-like tech detection, and an interactive HTML report.
+Python re-implementation of [Aquatone](https://github.com/michenriksen/aquatone)  workflow with Chromium (Playwright): async HTTP preflight, screenshots, pHash clustering, basic Wappalyzer-like tech detection, and an interactive HTML report.
 
 ## Quick start (Python 3.12 recommended)
 ```bash
