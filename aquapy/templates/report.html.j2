@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>aquapy report</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #111827;
+      --muted: #6b7280;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --badge: #e5e7eb;
+      --ok: #065f46;
+      --bad: #991b1b;
+      --shadow: 0 1px 2px rgba(0,0,0,.05);
+      --link: #2563eb;
+      --chip: #f3f4f6;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#0b0f17; --fg:#e5e7eb; --muted:#9ca3af; --card:#0f172a; --border:#1f2937; --badge:#111827; --ok:#34d399; --bad:#f87171; --shadow:0 1px 2px rgba(0,0,0,.35); --link:#60a5fa; --chip:#111827; }
+    }
+    [data-theme="dark"] { --bg:#0b0f17; --fg:#e5e7eb; --muted:#9ca3af; --card:#0f172a; --border:#1f2937; --badge:#111827; --ok:#34d399; --bad:#f87171; --shadow:0 1px 2px rgba(0,0,0,.35); --link:#60a5fa; --chip:#111827; }
+    html, body { height:100% }
+    body { background: var(--bg); color: var(--fg); margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    a { color: var(--link); text-decoration: none; } a:hover { text-decoration: underline; }
+    .container { padding: 20px 20px 80px; max-width: 1400px; margin: 0 auto; }
+    h1 { margin: 0 0 .25rem 0; font-size: 28px; }
+    .sub { color: var(--muted); margin-bottom: 12px; font-size: 14px; }
+    .toolbar { display: grid; gap: 10px; grid-template-columns: 1fr auto auto auto auto; align-items: center; margin: 12px 0 18px; }
+    .toolbar .group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .input { padding: 8px 10px; border: 1px solid var(--border); background: var(--card); border-radius: 10px; min-width: 260px; color: var(--fg); }
+    .select, .button { padding: 8px 10px; border: 1px solid var(--border); background: var(--card); color: var(--fg); border-radius: 10px; cursor: pointer; box-shadow: var(--shadow); }
+    .button { user-select:none } .button:disabled { opacity: .5; cursor: not-allowed; }
+    .chip { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; background: var(--chip); border: 1px solid var(--border); border-radius: 9999px; font-size: 12px; }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+    .card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card); box-shadow: var(--shadow); position: relative; }
+    .thumb-wrap { position: relative; background: #0b0b0b10; }
+    .shot { width: 100%; display: block; }
+    .badge { position: absolute; top: 8px; left: 8px; background: var(--badge); color: var(--fg); padding: 2px 6px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); opacity:.95 }
+    .overlay { position:absolute; right:8px; top:8px; display:flex; gap:6px }
+    .ov-btn { border:1px solid var(--border); background: var(--badge); color:var(--fg); border-radius:8px; padding:4px 6px; font-size:12px; text-decoration:none; box-shadow:var(--shadow) }
+    .meta { padding: 8px 12px; font-size: 12px; border-top: 1px solid var(--border); color:var(--fg); }
+    .meta .title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; margin-bottom: 2px; }
+    .meta .row { display:flex; align-items:center; gap:6px; }
+    .ok { color: var(--ok); } .bad { color: var(--bad); }
+    .hdrs { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; white-space: pre; background: var(--chip); border:1px solid var(--border); border-radius: 8px; padding:8px; max-height: 220px; overflow:auto; }
+    details { margin-top: 6px; }
+    .cluster { margin: 18px 0 10px; display:flex; align-items: center; justify-content: space-between; }
+    .cluster h2 { margin:0; font-size: 18px; }
+    .cluster-actions { display:flex; gap:8px; }
+    .hidden { display:none !important; }
+    .status-2xx { background: rgba(34,197,94,.12) }
+    .status-3xx { background: rgba(59,130,246,.12) }
+    .status-4xx { background: rgba(234,179,8,.12) }
+    .status-5xx { background: rgba(248,113,113,.12) }
+    .tags { margin-top: 6px; display:flex; flex-wrap: wrap; gap:6px; }
+    .tag { display:inline-block; padding:2px 6px; border-radius:9999px; background: var(--chip); border: 1px solid var(--border); font-size:11px; color:var(--muted); cursor:pointer }
+    .tag.active { color: var(--fg); border-color: var(--link); }
+    .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); padding: 10px 14px; border-radius: 10px; background: var(--badge); color: var(--fg); border: 1px solid var(--border); box-shadow: var(--shadow); display:none; }
+    /* Lightbox */
+    .lb { position: fixed; inset: 0; background: rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; z-index: 50; }
+    .lb img { max-width: 92vw; max-height: 90vh; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,.4); }
+    .lb .nav { position:absolute; top: 50%; transform: translateY(-50%); font-size: 28px; padding: 8px 12px; background: rgba(0,0,0,.35); color: #fff; border-radius: 8px; cursor: pointer; user-select:none }
+    .lb .prev { left: 16px; } .lb .next { right: 16px; }
+    .controls { display:flex; gap:8px; flex-wrap:wrap; }
+    .panel { padding: 10px; border: 1px solid var(--border); background: var(--card); border-radius: 12px; box-shadow: var(--shadow); }
+    .sep { height:1px; background: var(--border); margin: 8px 0; }
+    .muted { color: var(--muted) }
+    .lock { font-size: 12px; opacity:.8 }
+    .view-toggle { display:flex; gap:8px; }
+    .compact .grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .compact .meta { font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>aquapy — report</h1>
+    <div class="sub">Generated at {{ now }} • Clusters: {{ clusters|length }} • Targets: {{ entries|length }}</div>
+
+    <div class="toolbar">
+      <input id="search" class="input" placeholder="Search (/, Enter)… URL, title, server, tech">
+      <div class="group view-toggle">
+        <button id="toggle-dark" class="button" title="Toggle dark mode">🌓</button>
+        <button id="toggle-compact" class="button" title="Compact view">🔳</button>
+        <button id="collapse-all" class="button" title="Collapse all clusters">−</button>
+        <button id="expand-all" class="button" title="Expand all clusters">＋</button>
+      </div>
+      <div class="group">
+        <label class="chip"><input type="checkbox" class="st" value="2" checked> 2xx</label>
+        <label class="chip"><input type="checkbox" class="st" value="3" checked> 3xx</label>
+        <label class="chip"><input type="checkbox" class="st" value="4" checked> 4xx</label>
+        <label class="chip"><input type="checkbox" class="st" value="5" checked> 5xx</label>
+      </div>
+      <select id="sort" class="select">
+        <option value="">Sort: default</option>
+        <option value="url-asc">URL A→Z</option>
+        <option value="url-desc">URL Z→A</option>
+        <option value="status-asc">Status ↑</option>
+        <option value="status-desc">Status ↓</option>
+        <option value="title-asc">Title A→Z</option>
+      </select>
+      <div class="group">
+        <button id="export" class="button">Export filtered URLs</button>
+        <button id="copy" class="button">Copy filtered</button>
+      </div>
+    </div>
+
+    <div id="summary" class="panel" style="margin-bottom:10px;">
+      <div class="controls">
+        <div class="muted">Summary:</div>
+        <div id="sum-counts" class="tags"></div>
+      </div>
+      <div class="sep"></div>
+      <div class="controls">
+        <div class="muted">Top Hosts:</div>
+        <div id="top-hosts" class="tags"></div>
+      </div>
+    </div>
+
+    <div id="tech-overview" class="panel">
+      <div class="controls">
+        <div class="muted">Technologies:</div>
+        <div id="tech-tags" class="tags"></div>
+      </div>
+    </div>
+
+    <div id="pager" class="panel" style="margin:12px 0;">
+      <div class="controls">
+        <div class="muted">Pagination:</div>
+        <select id="page-size" class="select">
+          <option value="0">All</option>
+          <option value="100">100</option>
+          <option value="200" selected>200</option>
+          <option value="500">500</option>
+        </select>
+        <button id="load-more" class="button">Load more</button>
+        <span id="page-info" class="muted"></span>
+      </div>
+    </div>
+
+    {% for cid, group in grouped.items() %}
+      <div class="cluster" data-cluster="{{ cid }}">
+        <h2>Cluster #{{ cid }} <span class="muted">({{ group|length }} items)</span></h2>
+        <div class="cluster-actions">
+          <button class="button open-cluster">Open all</button>
+          <button class="button copy-cluster">Copy URLs</button>
+          <button class="button toggle-cluster">Collapse</button>
+        </div>
+      </div>
+      <div class="grid" data-grid="{{ cid }}">
+      {% for e in group %}
+        {% set techs = e.preflight.technologies %}
+        {% set tech_names = techs | map(attribute='name') | list %}
+        {% set url = e.preflight.final_url or e.preflight.url %}
+        {% set status = e.preflight.status or 0 %}
+        {% set status_class = 'status-' + (status // 100) | string + 'xx' %}
+        {% set is_https = (url | lower).startswith('https://') %}
+        <div class="card {{ status_class }}" 
+             data-url="{{ url }}"
+             data-title="{{ e.preflight.title or '' }}"
+             data-status="{{ status }}"
+             data-techs="{{ tech_names | join(',') | lower }}"
+             data-cluster="{{ cid }}">
+          <div class="thumb-wrap">
+            {% if e.shot and e.shot.path %}
+              <a href="{{ url }}" target="_blank" title="Open URL">
+                <img class="shot" src="{{ rel(e.shot.path) }}" loading="lazy" alt="screenshot of {{ url }}"/>
+              </a>
+            {% else %}
+              <div style="height:220px;display:flex;align-items:center;justify-content:center;background:#0b0b0b10;color:var(--muted)">no screenshot</div>
+            {% endif %}
+            <div class="badge">{{ status }}{% if is_https %} <span class="lock">🔒</span>{% endif %}</div>
+            <div class="overlay">
+              <a class="ov-btn" href="{{ url }}" target="_blank" title="Open URL">Open</a>
+              {% if e.preflight.body_path %}<a class="ov-btn" href="{{ rel(e.preflight.body_path) }}" target="_blank" title="Open saved HTML">HTML</a>{% endif %}
+              {% if e.preflight.headers_path %}<a class="ov-btn" href="{{ rel(e.preflight.headers_path) }}" target="_blank" title="Open headers">Headers</a>{% endif %}
+              <button class="ov-btn copy-one" title="Copy URL">Copy</button>
+              {% if e.shot and e.shot.path %}<button class="ov-btn zoom" data-img="{{ rel(e.shot.path) }}" title="Zoom">Zoom</button>{% endif %}
+            </div>
+          </div>
+          <div class="meta">
+            <div class="title">
+              <a href="{{ url }}" target="_blank">{{ url }}</a>
+            </div>
+            <div class="row">
+              <div>Status:&nbsp;{% if e.preflight.ok %}<span class="ok">{{ status }}</span>{% else %}<span class="bad">error</span>{% endif %}</div>
+              <div>•</div>
+              <div>Title:&nbsp;{{ e.preflight.title or '—' }}</div>
+            </div>
+            {% if techs %}
+              <div class="tags">
+                {% for t in techs[:8] %}
+                  <span class="tag" data-tech="{{ t.name | lower }}">{{ t.name }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+            <details>
+              <summary>Headers</summary>
+              <div class="hdrs">{{ e.preflight.headers }}</div>
+            </details>
+          </div>
+        </div>
+      {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Lightbox -->
+  <div id="lb" class="lb" tabindex="-1">
+    <div class="nav prev">◀</div>
+    <img id="lbimg" src="" alt="zoomed screenshot"/>
+    <div class="nav next">▶</div>
+  </div>
+
+  <div id="toast" class="toast">Copied!</div>
+
+  <script>
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+    // Dark mode toggle
+    const toggleDark = () => {
+      const cur = document.body.getAttribute('data-theme');
+      if (cur === 'dark') document.body.removeAttribute('data-theme');
+      else document.body.setAttribute('data-theme', 'dark');
+      localStorage.setItem('aquapy-theme', document.body.getAttribute('data-theme') || '');
+    };
+    (function initTheme(){
+      const saved = localStorage.getItem('aquapy-theme');
+      if (saved === 'dark') document.body.setAttribute('data-theme', 'dark');
+    })();
+    $('#toggle-dark').addEventListener('click', toggleDark);
+
+    // Compact view
+    $('#toggle-compact').addEventListener('click', () => {
+      document.body.classList.toggle('compact');
+      localStorage.setItem('aquapy-compact', document.body.classList.contains('compact') ? '1' : '');
+    });
+    (function initCompact(){
+      if (localStorage.getItem('aquapy-compact') === '1') document.body.classList.add('compact');
+    })();
+
+    // Cluster collapse/expand
+    const collapseAll = () => { $$('.toggle-cluster').forEach(b => collapseCluster(b, true)); };
+    const expandAll = () => { $$('.toggle-cluster').forEach(b => collapseCluster(b, false)); };
+    $('#collapse-all').addEventListener('click', collapseAll);
+    $('#expand-all').addEventListener('click', expandAll);
+
+    function collapseCluster(btn, toCollapsed) {
+      const clusterEl = btn.closest('.cluster');
+      const cid = clusterEl.getAttribute('data-cluster');
+      const grid = document.querySelector(`[data-grid="${cid}"]`);
+      const collapsed = toCollapsed != null ? toCollapsed : !grid.classList.contains('hidden');
+      grid.classList.toggle('hidden', collapsed);
+      btn.textContent = collapsed ? 'Expand' : 'Collapse';
+    }
+    $$('.toggle-cluster').forEach(b => b.addEventListener('click', () => collapseCluster(b)));
+
+    // Open/Copy cluster
+    function getClusterUrls(cid) { return $$(`.card[data-cluster="${cid}"]`).map(c => c.dataset.url); }
+    $$('.open-cluster').forEach(b => b.addEventListener('click', () => {
+      const cid = b.closest('.cluster').dataset.cluster;
+      const urls = getClusterUrls(cid).slice(0, 15);
+      if (!confirm(`Open ${urls.length} URLs (first 15) in new tabs? Pop-up blocker may prevent it.`)) return;
+      urls.forEach(u => window.open(u, '_blank'));
+    }));
+    $$('.copy-cluster').forEach(b => b.addEventListener('click', async () => {
+      const cid = b.closest('.cluster').dataset.cluster;
+      const urls = getClusterUrls(cid).join('\\n');
+      await navigator.clipboard.writeText(urls);
+      toast('Cluster URLs copied');
+    }));
+
+    // Per-card copy & zoom
+    $$('.copy-one').forEach(btn => btn.addEventListener('click', async (e) => {
+      const url = btn.closest('.card').dataset.url;
+      await navigator.clipboard.writeText(url);
+      toast('URL copied');
+    }));
+    // Lightbox
+    const lb = $('#lb'); const lbimg = $('#lbimg');
+    let imgs = []; let curIndex = 0;
+    function openLB(src) { lbimg.src = src; lb.style.display='flex'; lb.focus(); }
+    function closeLB(){ lb.style.display='none'; lbimg.src=''; }
+    function navLB(dir){ if (!imgs.length) return; curIndex = (curIndex + dir + imgs.length) % imgs.length; lbimg.src = imgs[curIndex]; }
+    $$('.zoom').forEach(btn => btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const grid = btn.closest('.grid');
+      imgs = Array.from(grid.querySelectorAll('.zoom')).map(z => z.dataset.img);
+      curIndex = imgs.indexOf(btn.dataset.img);
+      openLB(btn.dataset.img);
+    }));
+    lb.addEventListener('click', (e) => { if (e.target === lb) closeLB(); });
+    $('.prev').addEventListener('click', () => navLB(-1));
+    $('.next').addEventListener('click', () => navLB(1));
+    lb.addEventListener('keydown', (e) => { if (e.key==='Escape') closeLB(); if (e.key==='ArrowLeft') navLB(-1); if (e.key==='ArrowRight') navLB(1); });
+
+    // Search & filters
+    const search = $('#search');
+    function matches(card, q) {
+      const hay = (card.dataset.url + ' ' + card.dataset.title + ' ' + (card.dataset.techs||'')).toLowerCase();
+      return hay.includes(q);
+    }
+    function statusMatch(card) {
+      const st = String(card.dataset.status||'0');
+      const group = st[0] || '0';
+      const active = new Set($$('.st:checked').map(cb => cb.value));
+      return active.has(group);
+    }
+    function techFilter(card) {
+      const active = new Set($$('#tech-tags .tag.active').map(t => t.dataset.tech));
+      if (active.size === 0) return true;
+      const techs = (card.dataset.techs||'').split(',').map(s=>s.trim());
+      for (const a of active) if (techs.includes(a)) return true;
+      return false;
+    }
+    function hostFilter(card) {
+      const act = new Set($$('#top-hosts .tag.active').map(t=>t.dataset.host));
+      if (act.size===0) return true;
+      try { const h = new URL(card.dataset.url).host; return act.has(h); } catch { return false; }
+    }
+
+    // Build summary & tech overview
+    function buildSummary() {
+      const cards = $$('.card');
+      const total = cards.length;
+      const buckets = {2:0,3:0,4:0,5:0,other:0};
+      const hostCount = {};
+      cards.forEach(c => {
+        const st = parseInt(c.dataset.status||'0',10);
+        const g = Math.floor(st/100);
+        if (g>=2 && g<=5) buckets[g]++; else buckets.other++;
+        try { const u = new URL(c.dataset.url); const h = u.host; hostCount[h] = (hostCount[h]||0)+1; } catch {}
+      });
+      const countsEl = $('#sum-counts'); countsEl.innerHTML='';
+      const addChip = (label, value) => { const span = document.createElement('span'); span.className='chip'; span.textContent = `${label}: ${value}`; countsEl.appendChild(span); };
+      const pct = (n) => total? Math.round(n*1000/total)/10 : 0;
+      addChip('Total', total);
+      addChip('2xx', `${buckets[2]} (${pct(buckets[2])}%)`);
+      addChip('3xx', `${buckets[3]} (${pct(buckets[3])}%)`);
+      addChip('4xx', `${buckets[4]} (${pct(buckets[4])}%)`);
+      addChip('5xx', `${buckets[5]} (${pct(buckets[5])}%)`);
+
+      const hostEl = $('#top-hosts'); hostEl.innerHTML='';
+      Object.entries(hostCount).sort((a,b)=>b[1]-a[1]).slice(0,12).forEach(([h,cnt]) => {
+        const t = document.createElement('span'); t.className='tag'; t.dataset.host = h; t.textContent = `${h} (${cnt})`;
+        t.addEventListener('click', () => { t.classList.toggle('active'); applyFiltersAndPaginate(); });
+        hostEl.appendChild(t);
+      });
+    }
+
+    function buildTechOverview() {
+      const counts = {};
+      $$('.card').forEach(c => {
+        (c.dataset.techs||'').split(',').forEach(t => { t = t.trim(); if (!t) return; counts[t] = (counts[t]||0)+1; });
+      });
+      const el = $('#tech-tags'); el.innerHTML = '';
+      Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,30).forEach(([name,count]) => {
+        const span = document.createElement('span');
+        span.className = 'tag'; span.dataset.tech = name; span.textContent = `${name} (${count})`;
+        span.addEventListener('click', () => { span.classList.toggle('active'); applyFiltersAndPaginate(); });
+        el.appendChild(span);
+      });
+    }
+
+    // Pagination
+    let pageSize = 200; let currentLimit = 0;
+    function applyFiltersAndPaginate() {
+      const q = search.value.trim().toLowerCase();
+      const cards = $$('.card');
+      const filtered = cards.filter(c => (!q || matches(c,q)) && statusMatch(c) && techFilter(c) && hostFilter(c));
+      const sel = $('#page-size'); const ps = parseInt(sel.value,10); pageSize = isNaN(ps)? 0 : ps;
+      if (pageSize === 0) currentLimit = filtered.length;
+      else if (currentLimit === 0 || currentLimit < pageSize) currentLimit = pageSize;
+      cards.forEach(c => c.style.display='none');
+      filtered.slice(0, currentLimit).forEach(c => c.style.display='');
+      const shown = Math.min(currentLimit, filtered.length);
+      $('#page-info').textContent = `Showing ${shown} of ${filtered.length} filtered (out of ${cards.length} total)`;
+      $('#load-more').disabled = (pageSize===0 || shown>=filtered.length);
+      return shown;
+    }
+    $('#page-size').addEventListener('change', () => { currentLimit = 0; applyFiltersAndPaginate(); });
+    $('#load-more').addEventListener('click', () => { if (pageSize>0) { currentLimit += pageSize; applyFiltersAndPaginate(); } });
+
+    // Sorting
+    function sortCluster(grid, mode) {
+      const cards = Array.from(grid.children);
+      const get = (c, key) => {
+        if (key==='url') return (c.dataset.url||'').toLowerCase();
+        if (key==='status') return parseInt(c.dataset.status||'0', 10);
+        if (key==='title') return (c.dataset.title||'').toLowerCase();
+        return 0;
+      };
+      const cmp = {
+        'url-asc': (a,b)=> get(a,'url')>get(b,'url')?1:-1,
+        'url-desc': (a,b)=> get(a,'url')<get(b,'url')?1:-1,
+        'status-asc': (a,b)=> get(a,'status')-get(b,'status'),
+        'status-desc': (a,b)=> get(b,'status')-get(a,'status'),
+        'title-asc': (a,b)=> get(a,'title')>get(b,'title')?1:-1,
+      }[mode];
+      if (!cmp) return;
+      cards.sort(cmp).forEach(c => grid.appendChild(c));
+    }
+    $('#sort').addEventListener('change', (e) => { const mode = e.target.value; $$('[data-grid]').forEach(g => sortCluster(g, mode)); });
+
+    // Export / Copy filtered
+    function visibleUrls() { return $$('.card').filter(c => c.style.display !== 'none').map(c => c.dataset.url); }
+    function download(filename, text) { const blob = new Blob([text], {type:'text/plain'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); URL.revokeObjectURL(a.href); }
+    $('#export').addEventListener('click', () => { download('aquapy_filtered_urls.txt', visibleUrls().join('\\n')); });
+    $('#copy').addEventListener('click', async () => { await navigator.clipboard.writeText(visibleUrls().join('\\n')); toast('Filtered URLs copied'); });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => { if (e.key === '/') { e.preventDefault(); $('#search').focus(); } });
+
+    function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display='block'; setTimeout(()=> t.style.display='none', 1200); }
+
+    // Init
+    buildTechOverview(); buildSummary();
+    applyFiltersAndPaginate();
+  </script>
+</body>
+</html>

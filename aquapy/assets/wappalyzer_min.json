@@ -1,0 +1,58 @@
+{
+  "technologies": [
+    {
+      "name": "Apache",
+      "headers": {
+        "server": "apache"
+      },
+      "slug": "apache",
+      "categories": [
+        "Web Server"
+      ]
+    },
+    {
+      "name": "Nginx",
+      "headers": {
+        "server": "nginx"
+      },
+      "slug": "nginx",
+      "categories": [
+        "Web Server"
+      ]
+    },
+    {
+      "name": "WordPress",
+      "headers": {
+        "x-powered-by": "wordpress"
+      },
+      "html": [
+        "wp-content",
+        "wp-includes"
+      ],
+      "slug": "wordpress",
+      "categories": [
+        "CMS"
+      ]
+    },
+    {
+      "name": "Cloudflare",
+      "headers": {
+        "server": "cloudflare"
+      },
+      "slug": "cloudflare",
+      "categories": [
+        "CDN"
+      ]
+    },
+    {
+      "name": "IIS",
+      "headers": {
+        "server": "microsoft-iis"
+      },
+      "slug": "iis",
+      "categories": [
+        "Web Server"
+      ]
+    }
+  ]
+}
