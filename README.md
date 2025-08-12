@@ -54,7 +54,7 @@ python -m pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-> Tip: Si usas otra versión de Python y algo falla (p.ej. wheels), vuelve a 3.12.
+> Tip: If you use another Python version and encounter issues (e.g., wheel builds), switch back to 3.12.
 
 ### One-liners con Makefile
 ```bash
@@ -95,25 +95,27 @@ make run-nmap INPUT=scan.xml ARGS='-out out'
 | `-fingerprints` | path | JSON de Wappalyzer (si omites, usa el mínimo integrado) |
 | `-redirect` | flag, **off** | **Seguir redirects**. Si no lo pasas, NO sigue redirects |
 
-**Variables de entorno**:
-- `AQUATONE_OUT_PATH`: directorio por defecto para `-out` cuando no se especifica.
+**Environment variables:
+	•	AQUATONE_OUT_PATH: default directory for -out if not specified.
+
 
 ### Nmap / Masscan
-- Puedes pasar **ruta/s** al XML por `-i` o **contenido** por `STDIN`.
-- Ejemplos:
-  ```bash
-  python -m aquapy -nmap -i scan.xml -out out
-  printf '%s\n' scan1.xml scan2.xml | python -m aquapy -nmap -out out
-  cat scan.xml | python -m aquapy -nmap -out out
-  ```
-
+	•	Pass file paths via -i or XML content via STDIN.
+	•	Examples:
+ 
+```
+python -m aquapy -nmap -i scan.xml -out out
+printf '%s\n' scan1.xml scan2.xml | python -m aquapy -nmap -out out
+cat scan.xml | python -m aquapy -nmap -out out
+```
 ---
 
-## Reporte interactivo
-- **Resumen global**: total, % por 2xx/3xx/4xx/5xx, top hosts y techs (tags clicables).
-- **Filtros / búsqueda**: por texto (`/` para enfocar), status, tech y host.
-- **Paginación**: tamaño configurable (All/100/200/500) + “Load more”.
-- **Acciones por cluster**: Collapse/Expand, Open all, Copy URLs.
-- **Tarjetas**: overlay con Open/HTML/Headers/Copy/Zoom, lightbox de capturas, badges de status y 🔒 HTTPS.
-- **Export/Copy** de URLs filtradas, **dark mode** y vista compacta.
+## Interactive report
+	•	Global summary: totals, % by 2xx/3xx/4xx/5xx, top hosts & technologies (clickable tags).
+	•	Filtering / search: by text (/ to focus), status code, technology, and host.
+	•	Pagination: configurable size (All/100/200/500) + “Load more”.
+	•	Cluster actions: Collapse/Expand, Open all, Copy URLs.
+	•	Cards: overlay with Open/HTML/Headers/Copy/Zoom, lightbox screenshots, status badges, and 🔒 HTTPS indicator.
+	•	Export/Copy filtered URLs, dark mode, and compact view.
+
 
