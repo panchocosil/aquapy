@@ -17,6 +17,12 @@ cat hosts.txt | python -m aquapy -out out
 # Follow redirects explicitly
 cat hosts.txt | python -m aquapy -out out -redirect
 
+# Disable SSL verification (e.g. self-signed or internal certs)
+echo "https://internal.example.com" | python -m aquapy -out out -ssl
+
+# Use custom CA bundle for HTTPS
+echo "https://internal.example.com" | python -m aquapy -out out -cert ./ca-root.cer
+
 # Nmap/Masscan
 python -m aquapy -nmap -i scan.xml -out out
 cat scan.xml | python -m aquapy -nmap -out out
@@ -81,7 +87,7 @@ make run-nmap INPUT=scan.xml ARGS='-out out'
 | `-resolution` | `WxH`, **1440,900** | Tamaño del viewport si no usas perfiles |
 | `-save-body` / `-no-save-body` | flag, **true** | Guardar HTML de respuesta |
 | `-scan-timeout` | int, **100** | Placeholder (para futuros escaneos de puertos) |
-| `-screenshot-timeout` | int, **30000** | Timeout (ms) de screenshots |
+| `-screenshot-timeout` | int, **20000** | Timeout (ms) de screenshots |
 | `-session` | path | Cargar `aquatone_session.json` y generar reporte |
 | `-silent` | flag | Suprimir salida (excepto errores) |
 | `-template-path` | path | Ruta a templates HTML (por defecto, integrada) |
@@ -94,6 +100,8 @@ make run-nmap INPUT=scan.xml ARGS='-out out'
 | `-phash-threshold` | int, **10** | Umbral Hamming para cluster por pHash |
 | `-fingerprints` | path | JSON de Wappalyzer (si omites, usa el mínimo integrado) |
 | `-redirect` | flag, **off** | **Seguir redirects**. Si no lo pasas, NO sigue redirects |
+| `-cert` | path | Ruta al bundle de CA (ej. `ca-root.cer`) para verificación HTTPS |
+| `-ssl` | flag | **Desactivar** verificación SSL/TLS (inseguro; útil para certs autofirmados o internos) |
 
 **Environment variables:
 	•	AQUATONE_OUT_PATH: default directory for -out if not specified.
