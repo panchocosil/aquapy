@@ -7,7 +7,7 @@ from .models import Entry, PreflightResult, ShotResult
 from .probe import expand_targets_line, probe_target
 from .screenshot import screenshot_url
 from .report import render_report
-from .utils import extract_targets_from_text
+from .utils import extract_targets_from_text, debug_log
 from .nmap_masscan import parse_open_ports
 from .cluster import cluster_phashes
 
@@ -25,10 +25,14 @@ async def worker(q: asyncio.Queue, settings: Settings, out_dir: str, entries: li
         if pre.ok:
             fname = (pre.final_url or target.url).replace("://","_").replace("/","_") + ".png"
             path = os.path.join(shots_dir, fname)
-            shot = await screenshot_url(pre.final_url or target.url, path, settings.resolution[0], settings.resolution[1], settings.user_agent, timeout_ms=settings.screenshot_timeout_ms, proxy=settings.proxy, chrome_path=settings.chrome_path, full_page=settings.full_page, profile=settings.profile, retries=settings.retries_shot, ca_bundle_path=settings.ca_bundle_path, verify_ssl=settings.verify_ssl)
+            shot = await screenshot_url(pre.final_url or target.url, path, settings.resolution[0], settings.resolution[1], settings.user_agent, timeout_ms=settings.screenshot_timeout_ms, proxy=settings.proxy, chrome_path=settings.chrome_path, full_page=settings.full_page, profile=settings.profile, retries=settings.retries_shot, ca_bundle_path=settings.ca_bundle_path, verify_ssl=settings.verify_ssl, debug=settings.debug)
         entries.append(Entry(preflight=pre, shot=shot))
-        if not settings.silent and pre.ok:
-            print(pre.final_url or pre.url)
+        if not settings.silent:
+            if pre.ok:
+                print(pre.final_url or pre.url)
+            else:
+                reason = (pre.reason or "error")[:80]
+                print(f"{target.url} - error: {reason}", file=sys.stderr)
         q.task_done()
 
 def parse_ports(arg: str) -> List[int]:
@@ -120,6 +124,8 @@ async def run(args):
             extracted = [l for l in lines if l.strip()]
         for item in extracted:
             targets.extend(expand_targets_line(item, ports))
+
+    debug_log(settings.debug, f"run: {len(targets)} targets, concurrency={settings.concurrency}, out={out_dir}, verify_ssl={settings.verify_ssl}, cert={settings.ca_bundle_path or 'none'}")
 
     q: asyncio.Queue = asyncio.Queue()
     for t in targets:

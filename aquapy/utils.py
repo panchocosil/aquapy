@@ -1,5 +1,10 @@
 import re
+import sys
 from typing import Optional
+
+def debug_log(debug: bool, msg: str) -> None:
+    if debug:
+        print(f"[aquapy] {msg}", file=sys.stderr)
 
 _title_re = re.compile(r"<title[^>]*>(.*?)</title>", re.I|re.S)
 

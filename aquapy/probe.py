@@ -3,7 +3,7 @@ import asyncio, ssl, os
 import httpx
 from typing import List, Optional
 from .models import Target, PreflightResult
-from .utils import extract_title
+from .utils import extract_title, debug_log
 from .fingerprints import Fingerprinter
 
 def _url_from_host_port(host: str, port: int) -> str:
@@ -49,9 +49,13 @@ async def probe_target(target: Target, timeout_ms: int, save_body: bool, out_dir
     body_path = None
     headers_path = None
     verify = False if not verify_ssl else (ca_bundle_path if ca_bundle_path else True)
+    debug_log(debug, f"probe GET {target.url} verify={verify!r}")
     try:
         r = await _http_get(target.url, headers=headers, timeout_ms=timeout_ms, proxy=proxy, retries=retries_http, follow_redirects=follow_redirects, verify=verify)
         final_url = str(r.url)
+        debug_log(debug, f"probe {target.url} -> status={r.status_code} final_url={final_url}")
+        if final_url != target.url:
+            debug_log(debug, f"probe redirect: {target.url} -> {final_url}")
         # TLS peek (best-effort)
         if final_url.startswith("https://"):
             try:
@@ -71,8 +75,9 @@ async def probe_target(target: Target, timeout_ms: int, save_body: bool, out_dir
                     tls_subject = str(cert.get("subject"))
                     tls_issuer = str(cert.get("issuer"))
                 writer.close(); await writer.wait_closed()
-            except Exception:
-                pass
+                debug_log(debug, f"probe TLS issuer={tls_issuer!r} subject={tls_subject!r}")
+            except Exception as te:
+                debug_log(debug, f"probe TLS peek failed: {te}")
         title = extract_title(r.text or "") if "text/html" in (r.headers.get("content-type","").lower()) else None
         # Save headers/body
         os.makedirs(os.path.join(out_dir, "headers"), exist_ok=True)
@@ -95,8 +100,9 @@ async def probe_target(target: Target, timeout_ms: int, save_body: bool, out_dir
             fp = Fingerprinter(fingerprints_path) if fingerprints_path else None
             if fp:
                 techs = fp.detect(headers={k:v for k,v in r.headers.items()}, html=(r.text or ""))
-        except Exception:
-            pass
+        except Exception as fe:
+            debug_log(debug, f"probe fingerprint error: {fe}")
+        debug_log(debug, f"probe saved headers={headers_path} body={body_path} techs={len(techs)}")
         return PreflightResult(
             url=target.url, ok=True, status=r.status_code, reason=r.reason_phrase,
             headers={k:v for k,v in r.headers.items()}, title=title, tls_issuer=tls_issuer,
@@ -104,4 +110,5 @@ async def probe_target(target: Target, timeout_ms: int, save_body: bool, out_dir
             technologies=techs
         )
     except Exception as e:
+        debug_log(debug, f"probe FAIL {target.url}: {e}")
         return PreflightResult(url=target.url, ok=False, reason=str(e), status=None, headers={}, title=None, tls_issuer=None, tls_subject=None, final_url=final_url)
