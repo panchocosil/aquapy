@@ -14,7 +14,7 @@ PORT_ALIASES = {
 class Settings:
     concurrency: int = 8
     http_timeout_ms: int = 3000
-    screenshot_timeout_ms: int = 30000
+    screenshot_timeout_ms: int = 20000
     scan_timeout_ms: int = 100
     ports: List[int] = field(default_factory=lambda: DEFAULT_PORTS.copy())
     resolution: tuple[int,int] = (1440, 900)

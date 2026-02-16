@@ -182,7 +182,7 @@ def main():
     ap.add_argument("-resolution", default="1440,900", help='Screenshot resolution (default "1440,900")')
     ap.add_argument("-save-body", dest="save_body", action=argparse.BooleanOptionalAction, default=True, help="Save response bodies (default true)")
     ap.add_argument("-scan-timeout", type=int, default=100, help="Timeout ms for port scans (placeholder, default 100)")
-    ap.add_argument("-screenshot-timeout", type=int, default=30000, help="Timeout ms for screenshots (default 30000)")
+    ap.add_argument("-screenshot-timeout", type=int, default=20000, help="Timeout ms for screenshots (default 20000)")
     ap.add_argument("-session", help="Load aquatone session JSON and generate HTML report")
     ap.add_argument("-silent", action="store_true", help="Suppress all output except errors")
     ap.add_argument("-template-path", help="Path to HTML template to use for report")

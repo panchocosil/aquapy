@@ -92,21 +92,13 @@ def _http_get_urllib_no_verify(url: str, headers: dict, timeout_sec: float) -> S
     )
 
 async def _http_get(url: str, headers: dict, timeout_ms: int, proxy: Optional[str], retries: int, follow_redirects: bool, verify=True):
-    # When -ssl: use stdlib urllib with our SSL context only (no httpx), so env/certifi cannot interfere
+    # When -ssl: use stdlib urllib; cap timeout and no retries so dead ports fail fast
     if verify is False:
-        timeout_sec = timeout_ms / 1000.0
-        last_exc = None
-        for attempt in range(retries + 1):
-            try:
-                r = await asyncio.to_thread(_http_get_urllib_no_verify, url, headers, timeout_sec)
-                return r
-            except Exception as e:
-                last_exc = e
-                if attempt < retries:
-                    await asyncio.sleep(0.25 * (attempt + 1))
-                else:
-                    raise
-        raise last_exc
+        timeout_sec = min(timeout_ms / 1000.0, 5.0)
+        try:
+            return await asyncio.to_thread(_http_get_urllib_no_verify, url, headers, timeout_sec)
+        except Exception as e:
+            raise e
 
     last_exc = None
     verify_val = _ssl_verify_for_httpx(verify)
