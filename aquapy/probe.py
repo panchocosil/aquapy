@@ -1,5 +1,5 @@
 from __future__ import annotations
-import asyncio, ssl, os
+import asyncio, contextlib, ssl, os
 import httpx
 from typing import List, Optional
 from .models import Target, PreflightResult
@@ -42,23 +42,37 @@ def _ssl_verify_for_httpx(verify: bool | str) -> bool | str | ssl.SSLContext:
         return verify
     return _no_verify_ssl_context()
 
+@contextlib.contextmanager
+def _no_verify_env():
+    """Temporarily unset CA-related env vars so nothing in the stack (ssl, certifi, httpcore) can use them."""
+    saved = {}
+    for key in ("SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "REQUESTS_CA_BUNDLE_PATH"):
+        if key in os.environ:
+            saved[key] = os.environ.pop(key)
+    try:
+        yield
+    finally:
+        os.environ.update(saved)
+
 async def _http_get(url: str, headers: dict, timeout_ms: int, proxy: Optional[str], retries: int, follow_redirects: bool, verify=True) -> httpx.Response:
     last_exc = None
     verify_val = _ssl_verify_for_httpx(verify)
     transport = httpx.AsyncHTTPTransport(retries=0)
-    # When -ssl: trust_env=False so SSL_CERT_FILE / REQUESTS_CA_BUNDLE don't override our no-verify context
     trust_env = verify is True or (isinstance(verify, str) and bool(verify))
-    async with httpx.AsyncClient(follow_redirects=follow_redirects, timeout=timeout_ms/1000, verify=verify_val, transport=transport, proxies=proxy, trust_env=trust_env) as client:
-        for attempt in range(retries+1):
-            try:
-                r = await client.get(url, headers=headers)
-                return r
-            except Exception as e:
-                last_exc = e
-                if attempt < retries:
-                    await asyncio.sleep(0.25 * (attempt+1))
-                else:
-                    raise
+    # When -ssl: also temporarily unset CA env vars so no layer can override our no-verify context
+    no_verify_env = not trust_env
+    for attempt in range(retries+1):
+        try:
+            with (_no_verify_env() if no_verify_env else contextlib.nullcontext()):
+                async with httpx.AsyncClient(follow_redirects=follow_redirects, timeout=timeout_ms/1000, verify=verify_val, transport=transport, proxies=proxy, trust_env=trust_env) as client:
+                    r = await client.get(url, headers=headers)
+                    return r
+        except Exception as e:
+            last_exc = e
+            if attempt < retries:
+                await asyncio.sleep(0.25 * (attempt+1))
+            else:
+                raise
     raise last_exc
 
 async def probe_target(target: Target, timeout_ms: int, save_body: bool, out_dir: str, debug=False, proxy: Optional[str]=None, retries_http: int = 2, fingerprints_path: Optional[str]=None, follow_redirects: bool = False, ca_bundle_path: Optional[str]=None, verify_ssl: bool = True) -> PreflightResult:
