@@ -26,10 +26,10 @@ def _classify_error(e: Exception) -> str:
     if "connection refused" in s or "connect" in s or "reset by peer" in s: return "network"
     return "other"
 
-async def _http_get(url: str, headers: dict, timeout_ms: int, proxy: Optional[str], retries: int, follow_redirects: bool) -> httpx.Response:
+async def _http_get(url: str, headers: dict, timeout_ms: int, proxy: Optional[str], retries: int, follow_redirects: bool, verify=True) -> httpx.Response:
     last_exc = None
     transport = httpx.AsyncHTTPTransport(retries=0)
-    async with httpx.AsyncClient(follow_redirects=follow_redirects, timeout=timeout_ms/1000, verify=True, transport=transport, proxies=proxy) as client:
+    async with httpx.AsyncClient(follow_redirects=follow_redirects, timeout=timeout_ms/1000, verify=verify, transport=transport, proxies=proxy) as client:
         for attempt in range(retries+1):
             try:
                 r = await client.get(url, headers=headers)
@@ -42,21 +42,29 @@ async def _http_get(url: str, headers: dict, timeout_ms: int, proxy: Optional[st
                     raise
     raise last_exc
 
-async def probe_target(target: Target, timeout_ms: int, save_body: bool, out_dir: str, debug=False, proxy: Optional[str]=None, retries_http: int = 2, fingerprints_path: Optional[str]=None, follow_redirects: bool = False) -> PreflightResult:
+async def probe_target(target: Target, timeout_ms: int, save_body: bool, out_dir: str, debug=False, proxy: Optional[str]=None, retries_http: int = 2, fingerprints_path: Optional[str]=None, follow_redirects: bool = False, ca_bundle_path: Optional[str]=None, verify_ssl: bool = True) -> PreflightResult:
     headers = {"User-Agent":"aquapy/0.5.0"}
     tls_issuer = tls_subject = None
     final_url = None
     body_path = None
     headers_path = None
+    verify = False if not verify_ssl else (ca_bundle_path if ca_bundle_path else True)
     try:
-        r = await _http_get(target.url, headers=headers, timeout_ms=timeout_ms, proxy=proxy, retries=retries_http, follow_redirects=follow_redirects)
+        r = await _http_get(target.url, headers=headers, timeout_ms=timeout_ms, proxy=proxy, retries=retries_http, follow_redirects=follow_redirects, verify=verify)
         final_url = str(r.url)
         # TLS peek (best-effort)
         if final_url.startswith("https://"):
             try:
                 hostname = r.url.host
                 port = r.url.port or 443
-                ctx = ssl.create_default_context()
+                if verify_ssl:
+                    ctx = ssl.create_default_context()
+                    if ca_bundle_path:
+                        ctx.load_verify_locations(cafile=ca_bundle_path)
+                else:
+                    ctx = ssl.create_default_context()
+                    ctx.check_hostname = False
+                    ctx.verify_mode = ssl.CERT_NONE
                 reader, writer = await asyncio.open_connection(hostname, port, ssl=ctx, server_hostname=hostname)
                 cert = writer.get_extra_info("peercert")
                 if cert:

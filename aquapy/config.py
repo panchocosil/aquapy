@@ -32,3 +32,5 @@ class Settings:
     retries_shot: int = 1
     phash_threshold: int = 10
     follow_redirects: bool = False
+    ca_bundle_path: Optional[str] = None
+    verify_ssl: bool = True

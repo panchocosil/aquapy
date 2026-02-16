@@ -1,0 +1,12 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+# Virtual env
+.venv/
+venv/
+# Output
+*.png
+.env
+.env.*
+!.env.example

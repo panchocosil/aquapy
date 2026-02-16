@@ -20,12 +20,12 @@ async def worker(q: asyncio.Queue, settings: Settings, out_dir: str, entries: li
         if item is None:
             q.task_done(); break
         target = item
-        pre = await probe_target(target, timeout_ms=settings.http_timeout_ms, save_body=settings.save_body, out_dir=out_dir, debug=settings.debug, proxy=settings.proxy, retries_http=settings.retries_http, fingerprints_path=fingerprints_path, follow_redirects=settings.follow_redirects)
+        pre = await probe_target(target, timeout_ms=settings.http_timeout_ms, save_body=settings.save_body, out_dir=out_dir, debug=settings.debug, proxy=settings.proxy, retries_http=settings.retries_http, fingerprints_path=fingerprints_path, follow_redirects=settings.follow_redirects, ca_bundle_path=settings.ca_bundle_path, verify_ssl=settings.verify_ssl)
         shot = None
         if pre.ok:
             fname = (pre.final_url or target.url).replace("://","_").replace("/","_") + ".png"
             path = os.path.join(shots_dir, fname)
-            shot = await screenshot_url(pre.final_url or target.url, path, settings.resolution[0], settings.resolution[1], settings.user_agent, timeout_ms=settings.screenshot_timeout_ms, proxy=settings.proxy, chrome_path=settings.chrome_path, full_page=settings.full_page, profile=settings.profile, retries=settings.retries_shot)
+            shot = await screenshot_url(pre.final_url or target.url, path, settings.resolution[0], settings.resolution[1], settings.user_agent, timeout_ms=settings.screenshot_timeout_ms, proxy=settings.proxy, chrome_path=settings.chrome_path, full_page=settings.full_page, profile=settings.profile, retries=settings.retries_shot, ca_bundle_path=settings.ca_bundle_path, verify_ssl=settings.verify_ssl)
         entries.append(Entry(preflight=pre, shot=shot))
         if not settings.silent and pre.ok:
             print(pre.final_url or pre.url)
@@ -65,7 +65,9 @@ async def run(args):
         retries_http=args.retries_http,
         retries_shot=args.retries_shot,
         phash_threshold=args.phash_threshold,
-        follow_redirects=args.redirect
+        follow_redirects=args.redirect,
+        ca_bundle_path=args.cert,
+        verify_ssl=not args.ssl
     )
     out_dir = os.path.expanduser(args.out or env_default_out())
     os.makedirs(out_dir, exist_ok=True)
@@ -182,6 +184,8 @@ def main():
     ap.add_argument("-phash-threshold", type=int, default=10, help="Hamming distance for clustering pHash (default 10)")
     ap.add_argument("-fingerprints", help="Path to Wappalyzer JSON (defaults to built-in minimal database)")
     ap.add_argument("-redirect", action="store_true", help="Follow HTTP redirects (default: do not follow)")
+    ap.add_argument("-cert", dest="cert", metavar="PATH", help="Path to CA certificate bundle (e.g. ca-root.cer) for HTTPS verification")
+    ap.add_argument("-ssl", action="store_true", help="Disable SSL/TLS verification (insecure)")
 
     args = ap.parse_args()
     if args.version:

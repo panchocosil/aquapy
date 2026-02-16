@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 from typing import Optional
 from PIL import Image
 import imagehash, asyncio
@@ -16,8 +17,8 @@ MOBILE_PROFILES = {
     }
 }
 
-async def _take(browser, url: str, out_path: str, viewport: dict, user_agent: str, timeout_ms: int, full_page: bool, proxy: Optional[str]) -> Optional[str]:
-    context_kwargs = {"viewport": viewport, "user_agent": user_agent, "ignore_https_errors": True}
+async def _take(browser, url: str, out_path: str, viewport: dict, user_agent: str, timeout_ms: int, full_page: bool, proxy: Optional[str], ignore_https_errors: bool = True) -> Optional[str]:
+    context_kwargs = {"viewport": viewport, "user_agent": user_agent, "ignore_https_errors": ignore_https_errors}
     if proxy:
         context_kwargs["proxy"] = {"server": proxy}
     ctx = await browser.new_context(**context_kwargs)
@@ -29,21 +30,25 @@ async def _take(browser, url: str, out_path: str, viewport: dict, user_agent: st
     await ctx.close()
     return out_path
 
-async def screenshot_url(url: str, out_path: str, width: int, height: int, user_agent: str, timeout_ms: int = 30000, proxy: Optional[str]=None, chrome_path: Optional[str]=None, full_page: bool=False, profile: str="desktop", retries: int=1) -> ShotResult:
+async def screenshot_url(url: str, out_path: str, width: int, height: int, user_agent: str, timeout_ms: int = 30000, proxy: Optional[str]=None, chrome_path: Optional[str]=None, full_page: bool=False, profile: str="desktop", retries: int=1, ca_bundle_path: Optional[str]=None, verify_ssl: bool = True) -> ShotResult:
     try:
         async with async_playwright() as p:
             launch_kwargs = {"headless": True, "args": ["--no-sandbox"]}
             if chrome_path:
                 launch_kwargs["executable_path"] = chrome_path
+            if ca_bundle_path and verify_ssl:
+                env = {**os.environ, "SSL_CERT_FILE": os.path.abspath(ca_bundle_path)}
+                launch_kwargs["env"] = env
             browser = await p.chromium.launch(**launch_kwargs)
             prof = MOBILE_PROFILES.get(profile, MOBILE_PROFILES["desktop"])
             vp = prof["viewport"] if profile in MOBILE_PROFILES else {"width": width, "height": height}
             ua = prof["user_agent"] if profile in MOBILE_PROFILES else user_agent
+            ignore_https = not verify_ssl
 
             last_exc = None
             for attempt in range(retries+1):
                 try:
-                    path = await _take(browser, url, out_path, vp, ua, timeout_ms, full_page, proxy)
+                    path = await _take(browser, url, out_path, vp, ua, timeout_ms, full_page, proxy, ignore_https_errors=ignore_https)
                     ph = None
                     try:
                         img = Image.open(out_path)
