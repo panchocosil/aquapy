@@ -26,21 +26,27 @@ def _classify_error(e: Exception) -> str:
     if "connection refused" in s or "connect" in s or "reset by peer" in s: return "network"
     return "other"
 
+def _no_verify_ssl_context() -> ssl.SSLContext:
+    """Context that skips cert verification; does not load system CAs (avoids 'unable to get local issuer')."""
+    proto = getattr(ssl, "PROTOCOL_TLS_CLIENT", ssl.PROTOCOL_TLS)
+    ctx = ssl.SSLContext(proto)
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
 def _ssl_verify_for_httpx(verify: bool | str) -> bool | str | ssl.SSLContext:
     """Value for httpx verify: True, CA path (str), or SSL context that skips verification."""
     if verify is True:
         return True
     if isinstance(verify, str) and verify:
         return verify
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    return ctx
+    return _no_verify_ssl_context()
 
 async def _http_get(url: str, headers: dict, timeout_ms: int, proxy: Optional[str], retries: int, follow_redirects: bool, verify=True) -> httpx.Response:
     last_exc = None
+    verify_val = _ssl_verify_for_httpx(verify)
     transport = httpx.AsyncHTTPTransport(retries=0)
-    async with httpx.AsyncClient(follow_redirects=follow_redirects, timeout=timeout_ms/1000, verify=_ssl_verify_for_httpx(verify), transport=transport, proxies=proxy) as client:
+    async with httpx.AsyncClient(follow_redirects=follow_redirects, timeout=timeout_ms/1000, verify=verify_val, transport=transport, proxies=proxy) as client:
         for attempt in range(retries+1):
             try:
                 r = await client.get(url, headers=headers)
