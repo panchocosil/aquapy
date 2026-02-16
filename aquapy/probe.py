@@ -1,5 +1,5 @@
 from __future__ import annotations
-import asyncio, contextlib, ssl, os, socket
+import asyncio, contextlib, ssl, os
 import urllib.request
 import urllib.parse
 import httpx
@@ -66,22 +66,9 @@ class _UrlLike:
         return self._url_string
 
 def _http_get_urllib_no_verify(url: str, headers: dict, timeout_sec: float) -> SimpleNamespace:
-    """GET with stdlib urllib + our SSL context (no httpx). Uses IPv4 to avoid Errno 97 delays."""
-    parsed = urllib.parse.urlparse(url)
-    host = parsed.hostname
-    port = parsed.port or (443 if parsed.scheme == "https" else 80)
-    req_headers = dict(headers or {})
-    try:
-        infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
-        if infos:
-            ip = infos[0][4][0]
-            new_netloc = ip if port in (80, 443) else f"{ip}:{port}"
-            url = urllib.parse.urlunparse((parsed.scheme, new_netloc, parsed.path or "/", parsed.params, parsed.query, parsed.fragment))
-            req_headers["Host"] = host
-    except (socket.gaierror, OSError):
-        pass
+    """GET with stdlib urllib + our SSL context (no httpx). Returns response-like object."""
     ctx = _no_verify_ssl_context()
-    req = urllib.request.Request(url, headers=req_headers)
+    req = urllib.request.Request(url, headers=headers or {})
     with urllib.request.urlopen(req, timeout=timeout_sec, context=ctx) as resp:
         body = resp.read()
     final_url = resp.geturl()
