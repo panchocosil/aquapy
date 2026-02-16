@@ -2,6 +2,12 @@ from __future__ import annotations
 import argparse, asyncio, sys, os, json, multiprocessing
 from pathlib import Path
 from typing import List
+
+# Before importing .probe (and thus httpx): if -ssl, unset CA env vars so no layer uses them
+if "-ssl" in sys.argv:
+    for _k in ("SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "REQUESTS_CA_BUNDLE_PATH"):
+        os.environ.pop(_k, None)
+
 from .config import Settings, PORT_ALIASES
 from .models import Entry, PreflightResult, ShotResult
 from .probe import expand_targets_line, probe_target
