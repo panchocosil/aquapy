@@ -46,7 +46,9 @@ async def _http_get(url: str, headers: dict, timeout_ms: int, proxy: Optional[st
     last_exc = None
     verify_val = _ssl_verify_for_httpx(verify)
     transport = httpx.AsyncHTTPTransport(retries=0)
-    async with httpx.AsyncClient(follow_redirects=follow_redirects, timeout=timeout_ms/1000, verify=verify_val, transport=transport, proxies=proxy) as client:
+    # When -ssl: trust_env=False so SSL_CERT_FILE / REQUESTS_CA_BUNDLE don't override our no-verify context
+    trust_env = verify is True or (isinstance(verify, str) and bool(verify))
+    async with httpx.AsyncClient(follow_redirects=follow_redirects, timeout=timeout_ms/1000, verify=verify_val, transport=transport, proxies=proxy, trust_env=trust_env) as client:
         for attempt in range(retries+1):
             try:
                 r = await client.get(url, headers=headers)
