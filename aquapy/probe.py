@@ -1,6 +1,9 @@
 from __future__ import annotations
 import asyncio, contextlib, ssl, os
+import urllib.request
+import urllib.parse
 import httpx
+from types import SimpleNamespace
 from typing import List, Optional
 from .models import Target, PreflightResult
 from .utils import extract_title, debug_log
@@ -54,12 +57,61 @@ def _no_verify_env():
     finally:
         os.environ.update(saved)
 
-async def _http_get(url: str, headers: dict, timeout_ms: int, proxy: Optional[str], retries: int, follow_redirects: bool, verify=True) -> httpx.Response:
+class _UrlLike:
+    def __init__(self, host: str, port: int, url_string: str):
+        self.host = host
+        self.port = port
+        self._url_string = url_string
+    def __str__(self) -> str:
+        return self._url_string
+
+def _http_get_urllib_no_verify(url: str, headers: dict, timeout_sec: float) -> SimpleNamespace:
+    """GET with stdlib urllib + our SSL context (no httpx). Returns response-like object."""
+    ctx = _no_verify_ssl_context()
+    req = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(req, timeout=timeout_sec, context=ctx) as resp:
+        body = resp.read()
+    final_url = resp.geturl()
+    parsed = urllib.parse.urlparse(final_url)
+    port = parsed.port
+    if port is None:
+        port = 443 if parsed.scheme == "https" else 80
+    url_obj = _UrlLike(parsed.hostname, port, final_url)
+    hdrs = dict(resp.getheaders())
+    try:
+        text = body.decode("utf-8", errors="replace")
+    except Exception:
+        text = ""
+    return SimpleNamespace(
+        url=url_obj,
+        status_code=getattr(resp, "status", 200),
+        reason_phrase=getattr(resp, "reason", "OK"),
+        headers=hdrs,
+        content=body,
+        text=text,
+    )
+
+async def _http_get(url: str, headers: dict, timeout_ms: int, proxy: Optional[str], retries: int, follow_redirects: bool, verify=True):
+    # When -ssl: use stdlib urllib with our SSL context only (no httpx), so env/certifi cannot interfere
+    if verify is False:
+        timeout_sec = timeout_ms / 1000.0
+        last_exc = None
+        for attempt in range(retries + 1):
+            try:
+                r = await asyncio.to_thread(_http_get_urllib_no_verify, url, headers, timeout_sec)
+                return r
+            except Exception as e:
+                last_exc = e
+                if attempt < retries:
+                    await asyncio.sleep(0.25 * (attempt + 1))
+                else:
+                    raise
+        raise last_exc
+
     last_exc = None
     verify_val = _ssl_verify_for_httpx(verify)
     transport = httpx.AsyncHTTPTransport(retries=0)
     trust_env = verify is True or (isinstance(verify, str) and bool(verify))
-    # When -ssl: also temporarily unset CA env vars so no layer can override our no-verify context
     no_verify_env = not trust_env
     for attempt in range(retries+1):
         try:
